@@ -5,7 +5,7 @@ Codigo para resolver el 8puzzle
 
 from copy import deepcopy
 import sqlite3
-
+from random import choice
 
 class State(list):
     def __init__(self, state):
@@ -31,12 +31,16 @@ class Puzzle(object):
     def suffle(self, moves=100):
         """Mezcla aleatoriamente el tablero. Reliza <moves> movimientos
         Los pasos intermedios no se almacenan en la bd. Solo el desarmado"""
-        #         self.register.add(self.state)
+        for _ in xrange(moves):
+            possibles = self.get_possible_moves()
+            self.state = choice(possibles)
+        # self.register.add(self.state)
+
+    def solve(self):
         pass
 
     def get_possible_moves(self):
-        """devuelve una listo de posibles estados
-        a partir del actual."""
+        """devuelve una listo de posibles estados a partir del actual."""
         pos = self.state.index(0)
         moves = []
         for ady in self._get_adyacentes(pos):
@@ -52,13 +56,22 @@ class Puzzle(object):
         self._register.add(self.state)
 
     def _get_adyacentes(self, pos):
-        ady = []
-        for i in (-1, 1, 3, -3):
-            if 0 < pos + i < 8:
-                ady.append(pos + i)
-        return ady
+        """Devuelve los indices de los posibles movimientos de  posicion"""
+        adyacentes = []
+        for i in (-1, 1):
+            ady = pos + i
+            if ady / 3 == pos / 3:
+                adyacentes.append(ady)
+
+        for i in (3, -3):
+            ady = pos + i
+            if 0 < ady < 8:
+                adyacentes.append(ady)
+
+        return adyacentes
 
     def _switch(self, from_, to, state=None):
+        """Cambia la posicion de 2 elementos dados"""
         if state is None:
             state = self.state
 
@@ -105,9 +118,6 @@ class Register(object):
 
 p = Puzzle()
 print p.state
+print "suffle"
 
-print "moves"
-
-for i in p.get_possible_moves():
-    print i, "\n"
-
+p.suffle()
