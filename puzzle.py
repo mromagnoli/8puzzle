@@ -3,17 +3,32 @@
 Codigo para resolver el 8puzzle
 """
 
-from copy import deepcopy
 import sqlite3
 from random import choice
 
 class State(list):
-    def __init__(self, state):
-        list.__init__(self, state)
+    counter = 0
 
+    def __init__(self, state, nivel=0 ):
+        list.__init__(self, state)
+        self.nivel = nivel
+        self.id_ = State.counter
+        State.counter += 1
+
+    def set_nivel(self, nivel):
+        self.nivel = nivel
 
     def __str__(self):
-        return "{} {} {} \n{} {} {}\n{} {} {}".format(*self)
+        return "nivel = {}\nid = {}\n{} {} {} \n{} {} {}\n{} {} {}".format(
+            self.nivel, self.id_, *self)
+
+    def to_db(self):
+        return "{}{}{}{}{}{}{}{}{}".format(*self)
+
+    def is_solve(self):
+        """Chequea si esta terminado"""
+        return self == SOLVE
+
 
 
 SOLVE = State([1, 2, 3, 4, 5, 6, 7, 8 ,0])
@@ -22,7 +37,7 @@ DB = sqlite3.connect('ia.db')
 
 class Puzzle(object):
     def __init__(self):
-        self.state = deepcopy(SOLVE)
+        self.state = State(SOLVE)
         self._register = Register()
         # estado de las fichas en el tablero
         # 0 es el espacio en blanco
@@ -34,10 +49,33 @@ class Puzzle(object):
         for _ in xrange(moves):
             possibles = self.get_possible_moves()
             self.state = choice(possibles)
-        # self.register.add(self.state)
+# self.register.add(self.state)
 
-    def solve(self):
-        pass
+    def solve(self, step_by_step=False):
+        if self.state.is_solve():
+            print "Srly, bitch? ya esta resuelto"
+            return
+
+        hijos = list()
+        id_ = 1
+
+        while True:
+            nuevos = self.get_possible_moves()
+            # check si ya estan en la bd
+            map(lambda state:state.set_nivel(self.state.nivel + 1), nuevos)
+
+            for state in nuevos:
+                if state.is_solve():
+                    self.state = state
+                    return
+
+            hijos.extend(nuevos)
+            self.state = hijos.pop(0)
+
+            if step_by_step:
+                print self.state
+                raw_input("seguir?")
+
 
     def get_possible_moves(self):
         """devuelve una listo de posibles estados a partir del actual."""
@@ -47,13 +85,10 @@ class Puzzle(object):
             moves.append(self._switch(pos, ady, State(self.state)))
         return moves
 
-    def is_solve(self):
-        """Chequea si esta terminado"""
-        return self.state == SOLVE
 
-    def move(self, new_state):
-        self.state = new_state
-        self._register.add(self.state)
+    # def move(self, new_state):
+    #     self.state = new_state
+    #     self._register.add(self.state.to_db())
 
     def _get_adyacentes(self, pos):
         """Devuelve los indices de los posibles movimientos de  posicion"""
@@ -65,7 +100,7 @@ class Puzzle(object):
 
         for i in (3, -3):
             ady = pos + i
-            if 0 < ady < 8:
+            if 0 <= ady <= 8:
                 adyacentes.append(ady)
 
         return adyacentes
@@ -117,7 +152,13 @@ class Register(object):
 
 
 p = Puzzle()
-print p.state
-print "suffle"
+# p.suffle(20)
+# print p.state
 
-p.suffle()
+
+p.state = State([1, 4, 0, 7, 6, 2, 5, 3, 8])
+
+# p.solve(True)
+p.solve()
+print p.state
+
