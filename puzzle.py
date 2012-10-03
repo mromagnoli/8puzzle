@@ -7,7 +7,18 @@ from copy import deepcopy
 import sqlite3
 
 
-SOLVE = (1, 2, 3, 4, 5, 6, 7, 8 ,0)
+class State(list):
+    def __init__(self, state):
+        list.__init__(self, state)
+
+
+    def __str__(self):
+        return "{} {} {} \n{} {} {}\n{} {} {}".format(*self)
+
+
+SOLVE = State([1, 2, 3, 4, 5, 6, 7, 8 ,0])
+DB = sqlite3.connect('ia.db')
+
 
 class Puzzle(object):
     def __init__(self):
@@ -26,7 +37,11 @@ class Puzzle(object):
     def get_possible_moves(self):
         """devuelve una listo de posibles estados
         a partir del actual."""
-        pass
+        pos = self.state.index(0)
+        moves = []
+        for ady in self._get_adyacentes(pos):
+            moves.append(self._switch(pos, ady, State(self.state)))
+        return moves
 
     def is_solve(self):
         """Chequea si esta terminado"""
@@ -36,8 +51,19 @@ class Puzzle(object):
         self.state = new_state
         self._register.add(self.state)
 
-    def __str__(self):
-        return "{} {} {} \n{} {} {}\n{} {} {}".format(*self.state)
+    def _get_adyacentes(self, pos):
+        ady = []
+        for i in (-1, 1, 3, -3):
+            if 0 < pos + i < 8:
+                ady.append(pos + i)
+        return ady
+
+    def _switch(self, from_, to, state=None):
+        if state is None:
+            state = self.state
+
+        state[from_], state[to] = state[to], state[from_]
+        return state
 
 
 class Register(object):
@@ -50,14 +76,38 @@ class Register(object):
     """
 
     def __init__(self):
-        # if not (existe la bd en el motor con la tabla):
-        #    crearla
-        # else:
-        #    limpiar la tabla
-        pass
+        """si la tabla tiene elementos => eliminarlos"""
+        try:
+            cursor = DB.cursor()
+            cursor.execute("SELECT count(*) FROM puzzle")
 
-    def add(self, line):
-        """Inserta la linea en la tabla"""
-        pass
+            if cursor.fetchone()[0] > 0:
+                cursor.execute("DELETE FROM puzzle")
+                DB.commit()
 
-print Puzzle()
+        except sqlite3.OperationalError, e:
+            print "SQL error {}.".format(e)
+
+        finally:
+            cursor.close()
+
+    def add(self, hash_, state, padre):
+        """Un Insert en la tabla"""
+        try:
+            cursor = DB.cursor()
+            cursor.execute("INSERT INTO puzzle VALUES(NULL, ?, ?, ?)",
+                           (hash_, state, padre))
+            DB.commit()
+
+        except sqlite3.OperationalError, e:
+            print "SQL error {}.".format(e)
+
+
+p = Puzzle()
+print p.state
+
+print "moves"
+
+for i in p.get_possible_moves():
+    print i, "\n"
+
